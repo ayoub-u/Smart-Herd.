@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+
+:root {
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --sidebar-width: 260px;
+  --header-height: 64px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--font-sans);
+  color: #111827;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: #d1d5db; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* ── Sidebar links ── */
+.sidebar-link {
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150;
+  color: #6b7280;
+}
+.sidebar-link:hover  { background: #f0fdf4; color: #15803d; }
+.sidebar-link.active { background: rgb(22 163 74 / 0.1); color: #15803d; font-weight: 600; }
+
+/* ── Cards ── */
+.stat-card {
+  @apply bg-white rounded-2xl p-5 border border-gray-100 transition-all duration-200;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04);
+}
+.stat-card:hover {
+  box-shadow: 0 4px 12px 0 rgb(0 0 0 / 0.08);
+  transform: translateY(-1px);
+}
+
+/* ── Badges ── */
+.badge {
+  @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border;
+}
+
+/* ── Chart containers ── */
+.chart-container {
+  @apply bg-white rounded-2xl p-5 border border-gray-100;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04);
+}
+
+/* ── Tables ── */
+.data-table       { @apply w-full text-sm; }
+.data-table th    { @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-500 py-3 px-4 border-b border-gray-100; }
+.data-table td    { @apply py-3.5 px-4 border-b border-gray-50; }
+.data-table tr:hover td { @apply bg-gray-50/70; }
+.data-table tr:last-child td { border-bottom: none; }
+
+/* ── Gradient helpers ── */
+.gradient-green  { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
+.gradient-blue   { background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); }
+.gradient-amber  { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.gradient-rose   { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); }
+
+/* ── Status dot ── */
+.status-dot { @apply w-2 h-2 rounded-full inline-block; }
+
+/* ── Marketing page utilities ── */
+.section-padding { @apply py-20 px-6 lg:px-8; }
+.container-xl    { @apply max-w-7xl mx-auto; }
