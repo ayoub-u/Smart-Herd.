@@ -61,7 +61,7 @@ export function useFarm(): UseFarmResult {
     resolve();
 
     // Re-resolve whenever auth state changes (sign-in from another tab, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         resolve();
       }

@@ -1,7 +1,19 @@
 {
-  "/(dashboard)/notifications/page": "app/(dashboard)/notifications/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(dashboard)/analytics/page": "app/(dashboard)/analytics/page.js",
   "/(dashboard)/animals/[id]/page": "app/(dashboard)/animals/[id]/page.js",
-  "/(dashboard)/milk/page": "app/(dashboard)/milk/page.js",
+  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
   "/(dashboard)/animals/page": "app/(dashboard)/animals/page.js",
-  "/(dashboard)/reproduction/page": "app/(dashboard)/reproduction/page.js"
+  "/(dashboard)/milk/page": "app/(dashboard)/milk/page.js",
+  "/(dashboard)/health/page": "app/(dashboard)/health/page.js",
+  "/(dashboard)/notifications/page": "app/(dashboard)/notifications/page.js",
+  "/(dashboard)/nutrition/page": "app/(dashboard)/nutrition/page.js",
+  "/(dashboard)/reproduction/page": "app/(dashboard)/reproduction/page.js",
+  "/(marketing)/contact/page": "app/(marketing)/contact/page.js",
+  "/(dashboard)/settings/page": "app/(dashboard)/settings/page.js",
+  "/(marketing)/page": "app/(marketing)/page.js",
+  "/(marketing)/about/page": "app/(marketing)/about/page.js",
+  "/(marketing)/features/page": "app/(marketing)/features/page.js",
+  "/(marketing)/pricing/page": "app/(marketing)/pricing/page.js"
 }

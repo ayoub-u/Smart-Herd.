@@ -75,11 +75,11 @@ export function useHealth(farmId: string | null): UseHealthResult {
       ]);
 
       const nameMap = new Map<string, string>(
-        (animalsRes.data ?? []).map(a => [a.id, a.animal_name])
+        ((animalsRes.data ?? []) as Array<{ id: string; animal_name: string }>).map((a: { id: string; animal_name: string }) => [a.id, a.animal_name])
       );
 
-      setHealthRecords((hrRes.data ?? []).map(r => dbToHealthRecord(r, nameMap.get(r.animal_id) ?? "")));
-      setVaccinations((vaxRes.data ?? []).map(v => dbToVaccination(v, nameMap.get(v.animal_id) ?? "")));
+      setHealthRecords(((hrRes.data ?? []) as Array<DbHealthRecord>).map((r: DbHealthRecord) => dbToHealthRecord(r, nameMap.get(r.animal_id) ?? "")));
+      setVaccinations(((vaxRes.data ?? []) as Array<DbVaccination>).map((v: DbVaccination) => dbToVaccination(v, nameMap.get(v.animal_id) ?? "")));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load health data");
     } finally { setLoading(false); }

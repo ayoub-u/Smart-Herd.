@@ -64,17 +64,17 @@ export function useDashboard(farmId: string | null): DashboardStats {
           .eq("farm_id", farmId),
       ]);
 
-      const animals  = animalsRes.data ?? [];
-      const milkRows = milkRes.data    ?? [];
-      const feedRows = feedRes.data    ?? [];
-      const vaxRows  = vaxRes.data     ?? [];
+      const animals  = (animalsRes.data ?? []) as Array<{ animal_name: string; ear_tag: string | null; health_status: string | null; reproductive_status: string | null; species: string | null }>;
+      const milkRows = (milkRes.data ?? []) as Array<{ record_date: string; total_liters: number | null }>;
+      const feedRows = (feedRes.data ?? []) as Array<{ current_stock: number | null; reorder_level: number | null; cost_per_unit: number | null; daily_usage: number | null }>;
+      const vaxRows  = (vaxRes.data ?? []) as Array<{ status: string | null }>;
 
       // ── Animal KPIs ────────────────────────────────────────────────────────
       const totalAnimals     = animals.length;
-      const healthyAnimals   = animals.filter(a => a.health_status === "healthy").length;
-      const sickAnimals      = animals.filter(a => a.health_status === "sick" || a.health_status === "critical").length;
-      const pregnantAnimals  = animals.filter(a => a.reproductive_status === "pregnant").length;
-      const lactatingAnimals = animals.filter(a => a.reproductive_status === "lactating").length;
+      const healthyAnimals   = animals.filter((a: { health_status: string | null }) => a.health_status === "healthy").length;
+      const sickAnimals      = animals.filter((a: { health_status: string | null }) => a.health_status === "sick" || a.health_status === "critical").length;
+      const pregnantAnimals  = animals.filter((a: { reproductive_status: string | null }) => a.reproductive_status === "pregnant").length;
+      const lactatingAnimals = animals.filter((a: { reproductive_status: string | null }) => a.reproductive_status === "lactating").length;
 
       // ── Milk KPIs — from milk_records, NOT from animals columns ────────────
       const todayMilkRows = milkRows.filter(r => r.record_date === todayStr);
@@ -125,11 +125,17 @@ export function useDashboard(farmId: string | null): DashboardStats {
 
       // ── Species + health breakdowns ────────────────────────────────────────
       const speciesMap = new Map<string, number>();
-      animals.forEach(a => speciesMap.set(a.species, (speciesMap.get(a.species) ?? 0) + 1));
+      animals.forEach(a => {
+        const species = a.species ?? "unknown";
+        speciesMap.set(species, (speciesMap.get(species) ?? 0) + 1);
+      });
       const animalsBySpecies = Array.from(speciesMap.entries()).map(([species, count]) => ({ species, count }));
 
       const healthMap = new Map<string, number>();
-      animals.forEach(a => healthMap.set(a.health_status, (healthMap.get(a.health_status) ?? 0) + 1));
+      animals.forEach(a => {
+        const status = a.health_status ?? "unknown";
+        healthMap.set(status, (healthMap.get(status) ?? 0) + 1);
+      });
       const animalsByHealth = Array.from(healthMap.entries()).map(([status, count]) => ({ status, count }));
 
       // ── Vaccines ───────────────────────────────────────────────────────────
@@ -137,8 +143,8 @@ export function useDashboard(farmId: string | null): DashboardStats {
       const dueSoonVaccines = vaxRows.filter(v => v.status === "due-soon").length;
 
       // ── Feed ───────────────────────────────────────────────────────────────
-      const lowFeedItems   = feedRows.filter(f => f.current_stock <= f.reorder_level).length;
-      const totalFeedValue = feedRows.reduce((s, f) => s + f.current_stock * (f.cost_per_unit ?? 0), 0);
+      const lowFeedItems   = feedRows.filter(f => (f.current_stock ?? 0) <= (f.reorder_level ?? 0)).length;
+      const totalFeedValue = feedRows.reduce((s, f) => s + (f.current_stock ?? 0) * (f.cost_per_unit ?? 0), 0);
 
       setStats({
         totalAnimals, healthyAnimals, sickAnimals, pregnantAnimals, lactatingAnimals,

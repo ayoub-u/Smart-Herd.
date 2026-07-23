@@ -33,12 +33,12 @@ export default function NotificationsPage() {
   });
 
   const FILTERS: { value: Filter; label: string; count: number }[] = [
-    { value:"all",          label:"All",           count:notifications.length },
-    { value:"unread",       label:"Unread",        count:unreadCount },
-    { value:"health",       label:"💉 Health",     count:notifications.filter(n=>n.category==="health").length },
-    { value:"reproduction", label:"❤️ Repro",      count:notifications.filter(n=>n.category==="reproduction").length },
-    { value:"feed",         label:"🌾 Feed",        count:notifications.filter(n=>n.category==="feed").length },
-    { value:"production",   label:"🥛 Production",  count:notifications.filter(n=>n.category==="production").length },
+    { value:"all" as Filter,          label:"All",           count:notifications.length },
+    { value:"unread" as Filter,       label:"Unread",        count:unreadCount },
+    { value:"health" as Filter,       label:"💉 Health",     count:notifications.filter(n=>n.category==="health").length },
+    { value:"reproduction" as Filter, label:"❤️ Repro",      count:notifications.filter(n=>n.category==="reproduction").length },
+    { value:"feed" as Filter,         label:"🌾 Feed",        count:notifications.filter(n=>n.category==="feed").length },
+    { value:"production" as Filter,   label:"🥛 Production",  count:notifications.filter(n=>n.category==="production").length },
   ].filter(f => f.count > 0 || f.value==="all" || f.value==="unread");
 
   return (

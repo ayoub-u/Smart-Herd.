@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // navigating — so by the time the dashboard mounts, user+farm are set
     // and isLoading is false.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: string, session: any) => {
         try {
           if (event === "INITIAL_SESSION" && session?.user && !user) {
             // Only handle if bootstrap hasn't already set the user

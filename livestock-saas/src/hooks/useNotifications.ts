@@ -36,11 +36,11 @@ export function useNotifications(farmId: string | null): UseNotificationsResult 
         supabase.from("feed_inventory").select("id,feed_name,current_stock,reorder_level").eq("farm_id", farmId),
       ]);
 
-      const animals = animalsRes.data ?? [];
-      const vaxRows = vaxRes.data ?? [];
-      const feedRows = feedRes.data ?? [];
+      const animals = (animalsRes.data ?? []) as Array<{ id: string; animal_name: string; health_status: string | null; reproductive_status: string | null; expected_birth_date: string | null }>;
+      const vaxRows = (vaxRes.data ?? []) as Array<{ id: string; animal_id: string; vaccine_name: string; due_date: string; status: string | null }>;
+      const feedRows = (feedRes.data ?? []) as Array<{ id: string; feed_name: string; current_stock: number | null; reorder_level: number | null }>;
 
-      const nameMap = new Map(animals.map(a => [a.id, a.animal_name]));
+      const nameMap = new Map(animals.map((a: { id: string; animal_name: string }) => [a.id, a.animal_name]));
       const generated: Notification[] = [];
       const now = new Date().toISOString();
 
@@ -76,11 +76,11 @@ export function useNotifications(farmId: string | null): UseNotificationsResult 
       });
 
       // Low feed stock
-      feedRows.filter(f => f.current_stock <= f.reorder_level).forEach(f => {
+      feedRows.filter(f => (f.current_stock ?? 0) <= (f.reorder_level ?? 0)).forEach(f => {
         generated.push({
           id: `feed-${f.id}`, farmId,
           type: "warning", title: `Low feed stock: ${f.feed_name}`,
-          message: `${f.feed_name} stock (${f.current_stock}) is at or below reorder level (${f.reorder_level}).`,
+          message: `${f.feed_name} stock (${f.current_stock ?? 0}) is at or below reorder level (${f.reorder_level ?? 0}).`,
           date: now, read: false, category: "feed",
         });
       });

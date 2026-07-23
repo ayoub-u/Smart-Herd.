@@ -95,7 +95,7 @@ export function Sidebar() {
       {!collapsed && (
         <div className="mx-4 mt-4 mb-2 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-3">
           <p className="text-xs font-semibold text-emerald-800 truncate">{farm?.name ?? "My Farm"}</p>
-          <p className="text-[11px] text-emerald-600 mt-0.5 truncate">{farm?.location || farm?.country || "—"}</p>
+          <p className="text-[11px] text-emerald-600 mt-0.5 truncate">{farm?.region || farm?.country || "—"}</p>
           <div className="mt-2 flex gap-3">
             <div>
               <p className="text-xs font-bold text-emerald-900">{cattleCount}</p>

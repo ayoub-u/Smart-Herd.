@@ -107,7 +107,7 @@ export default function ReproductionPage() {
                       <p className="text-xs text-gray-400 mt-1">Expected: {formatDate(a.expectedBirthDate)}</p>
                     )}
                   </div>
-                  <StatusBadge label="pregnant" variant="purple"/>
+                  <StatusBadge label="pregnant" variant="violet"/>
                 </div>
               );
             })}

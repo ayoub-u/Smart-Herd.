@@ -48,8 +48,8 @@ export function useReproduction(farmId: string | null): UseReproductionResult {
         supabase.from("reproduction_events").select("*").eq("farm_id", farmId).order("event_date", { ascending: false }),
         supabase.from("animals").select("id,animal_name").eq("farm_id", farmId),
       ]);
-      const nameMap = new Map<string, string>((animalsRes.data ?? []).map(a => [a.id, a.animal_name]));
-      setRecords((eventsRes.data ?? []).map(r => dbToReproRecord(r, nameMap.get(r.animal_id) ?? "")));
+      const nameMap = new Map<string, string>(((animalsRes.data ?? []) as Array<{ id: string; animal_name: string }>).map((a: { id: string; animal_name: string }) => [a.id, a.animal_name]));
+      setRecords(((eventsRes.data ?? []) as Array<DbReproductionEvent>).map((r: DbReproductionEvent) => dbToReproRecord(r, nameMap.get(r.animal_id) ?? "")));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load reproduction data");
     } finally { setLoading(false); }

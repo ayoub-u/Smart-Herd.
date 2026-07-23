@@ -20,4 +20,4 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnon, {
     // Listen for auth state changes in the browser
     detectSessionInUrl: true,
   },
-});
+}) as any;

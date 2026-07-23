@@ -127,10 +127,10 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField label="Farm Name" required><input type="text" defaultValue={farm?.name} className={inputClass} /></FormField>
                 <FormField label="Country"><input type="text" defaultValue={farm?.country} className={inputClass} /></FormField>
-                <FormField label="Location / Region"><input type="text" defaultValue={farm?.location} className={inputClass} /></FormField>
-                <FormField label="Farm Size (hectares)"><input type="number" defaultValue={farm?.hectares} className={inputClass} /></FormField>
+                <FormField label="Location / Region"><input type="text" defaultValue={farm?.region} className={inputClass} /></FormField>
+                <FormField label="Farm Size (hectares)"><input type="number" defaultValue={farm?.farmSize ?? 0} className={inputClass} /></FormField>
                 <FormField label="Timezone">
-                  <select className={selectClass}>
+                  <select defaultValue={farm?.timezone} className={selectClass}>
                     <option>Africa/Algiers (GMT+1)</option>
                     <option>Europe/Paris (GMT+1)</option>
                     <option>UTC</option>
