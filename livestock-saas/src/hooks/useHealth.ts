@@ -54,6 +54,7 @@ interface UseHealthResult {
   addVaccination:  (p: VaccinationInsertPayload) => Promise<{ error: string | null }>;
   markVaccinationDone: (id: string) => Promise<{ error: string | null }>;
   deleteHealthRecord: (id: string) => Promise<{ error: string | null }>;
+  deleteVaccination: (id: string) => Promise<{ error: string | null }>;
 }
 
 export function useHealth(farmId: string | null): UseHealthResult {

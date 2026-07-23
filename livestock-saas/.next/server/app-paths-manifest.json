@@ -1,8 +1,7 @@
 {
   "/(dashboard)/notifications/page": "app/(dashboard)/notifications/page.js",
-  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
+  "/(dashboard)/animals/[id]/page": "app/(dashboard)/animals/[id]/page.js",
   "/(dashboard)/milk/page": "app/(dashboard)/milk/page.js",
   "/(dashboard)/animals/page": "app/(dashboard)/animals/page.js",
-  "/(dashboard)/animals/[id]/page": "app/(dashboard)/animals/[id]/page.js",
   "/(dashboard)/reproduction/page": "app/(dashboard)/reproduction/page.js"
 }
