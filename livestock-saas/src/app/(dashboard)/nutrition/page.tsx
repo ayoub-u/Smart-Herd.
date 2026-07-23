@@ -1,232 +1,175 @@
 "use client";
 import { useState } from "react";
-import { mockFeedInventory, animals } from "@/data/mockData";
-import { AlertTriangle, Plus } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
+import { Plus, Loader2, AlertCircle } from "lucide-react";
+import { Modal }         from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState }    from "@/components/ui/EmptyState";
+import { StatusBadge }   from "@/components/ui/StatusBadge";
+import { FormField, inputClass, selectClass, textareaClass } from "@/components/ui/FormField";
 import { cn } from "@/lib/utils";
+import { useAuth }         from "@/contexts/AuthContext";
+import { useFeedInventory } from "@/hooks/useFeedInventory";
+import type { FeedInsertPayload } from "@/hooks/useFeedInventory";
 
-const CAT_COLORS: Record<string, string> = {
-  forage:"bg-green-100 text-green-700", concentrate:"bg-blue-100 text-blue-700",
-  supplement:"bg-purple-100 text-purple-700", mineral:"bg-amber-100 text-amber-700",
+const CATEGORY_COLOR: Record<string, string> = {
+  forage:"bg-green-50 text-green-700", concentrate:"bg-blue-50 text-blue-700",
+  supplement:"bg-violet-50 text-violet-700", mineral:"bg-amber-50 text-amber-700",
 };
-const PIE_COLORS = ["#059669","#3b82f6","#8b5cf6","#f59e0b"];
-
-const RATION = [
-  { name:"Alfalfa Hay",     kg:8,    cost:2.80 },
-  { name:"Corn Silage",     kg:15,   cost:1.80 },
-  { name:"Concentrate",     kg:6,    cost:4.10 },
-  { name:"Wheat Straw",     kg:3,    cost:0.54 },
-  { name:"Minerals",        kg:0.15, cost:0.18 },
-];
-
-const SCHEDULE = [
-  { time:"05:30 AM", meal:"Morning Milking + Concentrate", amount:"3 kg/cow",  barn:"All Barns"      },
-  { time:"08:00 AM", meal:"Forage Distribution",           amount:"12 kg/cow", barn:"Barns A, B, C"  },
-  { time:"12:00 PM", meal:"Afternoon Concentrate",         amount:"2 kg/cow",  barn:"All Barns"      },
-  { time:"03:30 PM", meal:"Evening Milking + Concentrate", amount:"3 kg/cow",  barn:"All Barns"      },
-  { time:"06:00 PM", meal:"Night Forage",                  amount:"8 kg/cow",  barn:"All Barns"      },
-];
 
 export default function NutritionPage() {
-  const [tab, setTab] = useState("inventory");
+  const { farm } = useAuth();
+  const farmId   = farm?.id ?? null;
+  const { feedItems, loading, error, addFeedItem, updateFeedItem, deleteFeedItem, totalCostPerDay } = useFeedInventory(farmId);
 
-  const totalValue = mockFeedInventory.reduce((s, f) => s + f.totalValue, 0);
-  const lowStock   = mockFeedInventory.filter((f) => f.daysRemaining < 15);
-  const dailyCost  = mockFeedInventory.reduce((s, f) => s + f.dailyUsage * f.costPerUnit, 0);
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [toDelete,    setToDelete]    = useState<string|null>(null);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [submitError, setSubmitError] = useState<string|null>(null);
+
+  const [name,     setName]     = useState("");
+  const [category, setCategory] = useState<"forage"|"concentrate"|"supplement"|"mineral">("forage");
+  const [stock,    setStock]    = useState("");
+  const [unit,     setUnit]     = useState("kg");
+  const [usage,    setUsage]    = useState("");
+  const [cost,     setCost]     = useState("");
+  const [reorder,  setReorder]  = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [delivery, setDelivery] = useState("");
+  const [notes,    setNotes]    = useState("");
+
+  const totalValue   = feedItems.reduce((s,f) => s + f.totalValue,   0);
+  const lowCount     = feedItems.filter(f => f.currentStock <= f.reorderLevel).length;
+
+  async function handleAdd() {
+    if (!name||!stock||!unit) { setSubmitError("Name, stock and unit are required."); return; }
+    setSubmitting(true); setSubmitError(null);
+    const payload: FeedInsertPayload = {
+      feed_name: name, category,
+      current_stock: parseFloat(stock)||0,
+      unit, daily_usage: parseFloat(usage)||0,
+      cost_per_unit: parseFloat(cost)||0,
+      reorder_level: parseFloat(reorder)||0,
+      supplier: supplier||undefined,
+      last_delivery_date: delivery||undefined,
+      notes: notes||undefined,
+    };
+    const { error } = await addFeedItem(payload);
+    setSubmitting(false);
+    if (error) { setSubmitError(error); return; }
+    setShowAdd(false);
+    setName(""); setStock(""); setUsage(""); setCost(""); setReorder(""); setSupplier(""); setDelivery(""); setNotes("");
+  }
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label:"Feed Items",      icon:"🌾", value:mockFeedInventory.length, sub:`${lowStock.length} low stock`, bg:"bg-green-50 text-green-600"  },
-          { label:"Total Value",     icon:"💰", value:`$${totalValue.toFixed(0)}`, sub:"Current inventory",         bg:"bg-blue-50 text-blue-600"    },
-          { label:"Daily Feed Cost", icon:"📊", value:`$${dailyCost.toFixed(0)}`, sub:"Per day",                   bg:"bg-amber-50 text-amber-600"  },
-          { label:"Low Stock Alerts",icon:"⚠️", value:lowStock.length, sub:"Need reorder",                         bg:"bg-red-50 text-red-600"      },
-        ].map((s) => (
-          <div key={s.label} className="stat-card">
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-3", s.bg)}>{s.icon}</div>
-            <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{s.label}</p>
-            <p className="text-xs text-gray-400 mt-1">{s.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Low stock warning */}
-      {lowStock.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} className="text-amber-600" />
-            <p className="font-semibold text-amber-800 text-sm">Low Stock Warning</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {lowStock.map((f) => (
-              <div key={f.id} className="flex items-center gap-2 bg-white border border-amber-200 rounded-xl px-3 py-1.5">
-                <span className="text-xs font-semibold text-amber-700">{f.name}</span>
-                <span className="text-xs text-amber-500">{f.daysRemaining}d remaining</span>
-                <button className="text-xs text-blue-600 font-medium hover:underline">Order</button>
-              </div>
-            ))}
-          </div>
+    <div className="space-y-5 max-w-[1400px]">
+      {lowCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+          <AlertCircle size={18} className="text-amber-600 shrink-0"/>
+          <p className="text-sm text-amber-700"><strong>{lowCount} feed item{lowCount>1?"s":""}</strong> at or below reorder level. Restock soon.</p>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {["inventory","schedule","ration","costs"].map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={cn("px-4 py-2.5 rounded-xl text-sm font-medium transition-colors capitalize",
-              tab===t ? "bg-emerald-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-            )}>
-            {t==="ration" ? "Ration Calculator" : t==="costs" ? "Feed Costs" : t.charAt(0).toUpperCase()+t.slice(1)}
-          </button>
+      {/* Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label:"Feed Items",     value:feedItems.length,        color:"bg-emerald-50 text-emerald-700" },
+          { label:"Low Stock",      value:lowCount,                color:"bg-red-50 text-red-700"         },
+          { label:"Daily Cost",     value:`${totalCostPerDay.toFixed(0)} DZD`, color:"bg-blue-50 text-blue-700" },
+          { label:"Total Value",    value:`${totalValue.toFixed(0)} DZD`,       color:"bg-violet-50 text-violet-700" },
+        ].map(s => (
+          <div key={s.label} className={cn("rounded-2xl p-4 text-center", s.color)}>
+            <p className="text-xl font-bold">{s.value}</p>
+            <p className="text-xs font-semibold mt-0.5">{s.label}</p>
+          </div>
         ))}
       </div>
 
       {/* Inventory */}
-      {tab==="inventory" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {mockFeedInventory.map((f) => {
-            const pct    = Math.min(100, Math.round((f.currentStock / (f.dailyUsage * 60)) * 100));
-            const isLow  = f.daysRemaining < 15;
-            return (
-              <div key={f.id} className="bg-white rounded-2xl border border-gray-100 shadow-card p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl",
-                      f.category==="forage" ? "bg-green-50" : f.category==="concentrate" ? "bg-blue-50" : f.category==="supplement" ? "bg-purple-50" : "bg-amber-50"
-                    )}>{f.category==="forage"?"🌿":f.category==="concentrate"?"🌽":f.category==="supplement"?"💊":"🪨"}</div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
+        <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+          <div><h3 className="font-semibold text-gray-900">Feed Inventory</h3><p className="text-xs text-gray-400 mt-0.5">{feedItems.length} items</p></div>
+          <button onClick={()=>{setSubmitError(null);setShowAdd(true);}}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
+            <Plus size={16}/>Add Item
+          </button>
+        </div>
+
+        {error && <div className="p-4 text-sm text-red-600 bg-red-50">{error}</div>}
+
+        {loading ? (
+          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1,2,3,4].map(i=><div key={i} className="h-40 bg-gray-50 rounded-xl animate-pulse"/>)}
+          </div>
+        ) : feedItems.length === 0 ? (
+          <EmptyState icon="🌾" title="No feed items" message="Add your feed inventory to track stock levels and costs."/>
+        ) : (
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {feedItems.map(f => {
+              const urgent = f.currentStock <= f.reorderLevel;
+              const pct    = f.dailyUsage > 0 ? Math.min(100, Math.round((f.currentStock/(f.dailyUsage*60))*100)) : 100;
+              return (
+                <div key={f.id} className={cn("border rounded-2xl p-4 space-y-3",urgent?"border-red-200 bg-red-50/30":"border-gray-100 bg-white")}>
+                  <div className="flex items-start justify-between">
                     <div>
                       <p className="font-semibold text-gray-900">{f.name}</p>
-                      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", CAT_COLORS[f.category])}>{f.category}</span>
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",CATEGORY_COLOR[f.category]??"")}>{f.category}</span>
+                    </div>
+                    <button onClick={()=>setToDelete(f.id)} className="text-xs text-red-500 hover:underline">Delete</button>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">{f.currentStock}{f.unit}</span>
+                      <span className={cn("font-semibold text-xs",urgent?"text-red-600":"text-gray-500")}>{f.daysRemaining}d left</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={cn("h-full rounded-full",urgent?"bg-red-400":"bg-emerald-500")} style={{width:`${pct}%`}}/>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={cn("text-sm font-bold", isLow ? "text-red-600" : "text-gray-900")}>{f.daysRemaining}d left</p>
-                    <p className="text-xs text-gray-400">${f.totalValue.toFixed(0)} value</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 pt-1 border-t border-gray-100">
+                    <div><p className="text-gray-400">Daily Use</p><p className="font-medium text-gray-700">{f.dailyUsage}{f.unit}</p></div>
+                    <div><p className="text-gray-400">Cost/Unit</p><p className="font-medium text-gray-700">{f.costPerUnit} DZD</p></div>
+                    <div><p className="text-gray-400">Reorder At</p><p className="font-medium text-gray-700">{f.reorderLevel}{f.unit}</p></div>
+                    <div><p className="text-gray-400">Total Value</p><p className="font-medium text-gray-700">{f.totalValue.toFixed(0)} DZD</p></div>
                   </div>
+                  {f.supplier&&<p className="text-xs text-gray-400">Supplier: {f.supplier}</p>}
                 </div>
-                <div className="mt-4">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                    <span>{f.currentStock.toLocaleString()} {f.unit}</span><span>{pct}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={cn("h-full rounded-full", isLow ? "bg-red-400" : pct>50 ? "bg-emerald-500" : "bg-amber-400")} style={{ width:`${pct}%` }} />
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 pt-3 border-t border-gray-50">
-                  <div><p className="text-[10px] text-gray-400">Daily Use</p><p className="text-xs font-semibold text-gray-700">{f.dailyUsage} {f.unit}</p></div>
-                  <div><p className="text-[10px] text-gray-400">Cost/Unit</p><p className="text-xs font-semibold text-gray-700">${f.costPerUnit}</p></div>
-                  <div><p className="text-[10px] text-gray-400">Supplier</p><p className="text-xs font-semibold text-gray-700 truncate">{f.supplier}</p></div>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <button className="flex-1 text-xs text-center py-1.5 rounded-lg bg-emerald-50 text-emerald-700 font-medium hover:bg-emerald-100 transition-colors">Record Usage</button>
-                  <button className="flex-1 text-xs text-center py-1.5 rounded-lg bg-blue-50 text-blue-700 font-medium hover:bg-blue-100 transition-colors">Order Stock</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-      {/* Schedule */}
-      {tab==="schedule" && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Daily Feeding Schedule</h3>
-            <button className="text-sm text-emerald-600 font-medium">Edit Schedule</button>
+      <Modal open={showAdd} onClose={()=>{setShowAdd(false);setSubmitError(null);}} title="Add Feed Item" size="lg"
+        footer={<>
+          <button onClick={()=>setShowAdd(false)} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button onClick={handleAdd} disabled={submitting} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-semibold">
+            {submitting?<><Loader2 size={15} className="animate-spin"/>Saving…</>:"Save Item"}
+          </button>
+        </>}>
+        <div className="space-y-4">
+          {submitError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">{submitError}</div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Feed Name" required><input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Alfalfa Hay" className={inputClass}/></FormField>
+            <FormField label="Category">
+              <select value={category} onChange={e=>setCategory(e.target.value as typeof category)} className={selectClass}>
+                <option value="forage">Forage</option><option value="concentrate">Concentrate</option>
+                <option value="supplement">Supplement</option><option value="mineral">Mineral</option>
+              </select>
+            </FormField>
+            <FormField label="Current Stock" required><input type="number" value={stock} onChange={e=>setStock(e.target.value)} min="0" placeholder="0" className={inputClass}/></FormField>
+            <FormField label="Unit"><input type="text" value={unit} onChange={e=>setUnit(e.target.value)} placeholder="kg / bales / L" className={inputClass}/></FormField>
+            <FormField label="Daily Usage"><input type="number" value={usage} onChange={e=>setUsage(e.target.value)} min="0" step="0.1" placeholder="0" className={inputClass}/></FormField>
+            <FormField label="Cost per Unit (DZD)"><input type="number" value={cost} onChange={e=>setCost(e.target.value)} min="0" step="0.01" placeholder="0" className={inputClass}/></FormField>
+            <FormField label="Reorder Level"><input type="number" value={reorder} onChange={e=>setReorder(e.target.value)} min="0" placeholder="0" className={inputClass}/></FormField>
+            <FormField label="Supplier"><input type="text" value={supplier} onChange={e=>setSupplier(e.target.value)} placeholder="Supplier name" className={inputClass}/></FormField>
+            <FormField label="Last Delivery"><input type="date" value={delivery} onChange={e=>setDelivery(e.target.value)} className={inputClass}/></FormField>
           </div>
-          <div className="divide-y divide-gray-50">
-            {SCHEDULE.map((s, i) => (
-              <div key={i} className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50/70">
-                <div className="w-20 shrink-0"><p className="text-sm font-bold text-emerald-600">{s.time}</p></div>
-                <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-800">{s.meal}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{s.barn}</p>
-                </div>
-                <p className="text-sm font-medium text-gray-700 shrink-0">{s.amount}</p>
-              </div>
-            ))}
-          </div>
+          <FormField label="Notes"><textarea rows={2} value={notes} onChange={e=>setNotes(e.target.value)} className={textareaClass}/></FormField>
         </div>
-      )}
+      </Modal>
 
-      {/* Ration */}
-      {tab==="ration" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-5">
-            <h3 className="font-semibold text-gray-900 mb-1">TMR Ration Calculator</h3>
-            <p className="text-xs text-gray-500 mb-4">For 30L/day cow, 600kg liveweight</p>
-            <div className="space-y-3">
-              {RATION.map((r, i) => (
-                <div key={r.name} className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor:PIE_COLORS[i%PIE_COLORS.length] }} />
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700">{r.name}</span>
-                      <span className="text-sm font-bold text-gray-900">{r.kg} kg</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full">
-                      <div className="h-full rounded-full" style={{ width:`${(r.kg/32)*100}%`, backgroundColor:PIE_COLORS[i%PIE_COLORS.length] }} />
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-400 shrink-0">${r.cost.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between">
-              <div><p className="text-xs text-gray-400">Total Ration</p><p className="text-lg font-bold text-gray-900">{RATION.reduce((s,r)=>s+r.kg,0).toFixed(2)} kg</p></div>
-              <div className="text-right"><p className="text-xs text-gray-400">Daily Cost/Cow</p><p className="text-lg font-bold text-emerald-600">${RATION.reduce((s,r)=>s+r.cost,0).toFixed(2)}</p></div>
-            </div>
-            <button className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">Recalculate Ration</button>
-          </div>
-          <div className="chart-container">
-            <h3 className="font-semibold text-gray-900 mb-4">Ration Composition</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie data={RATION} dataKey="kg" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name.split(" ")[0]} ${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={11}>
-                  {RATION.map((_, i) => <Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v) => [`${v} kg`]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* Costs */}
-      {tab==="costs" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="chart-container">
-            <h3 className="font-semibold text-gray-900 mb-1">Feed Cost by Item</h3>
-            <p className="text-xs text-gray-400 mb-4">Current inventory value ($)</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={mockFeedInventory} margin={{ top:5, right:10, left:-10, bottom:40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" tick={{ fontSize:10, fill:"#9ca3af" }} angle={-20} textAnchor="end" />
-                <YAxis tick={{ fontSize:11, fill:"#9ca3af" }} />
-                <Tooltip formatter={(v) => [`$${Number(v).toFixed(2)}`]} />
-                <Bar dataKey="totalValue" name="Value ($)" fill="#059669" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="chart-container">
-            <h3 className="font-semibold text-gray-900 mb-1">Daily Usage Cost</h3>
-            <p className="text-xs text-gray-400 mb-4">Cost per day by feed type</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={mockFeedInventory.map((f)=>({ name:f.name.split(" ")[0], value:parseFloat((f.dailyUsage*f.costPerUnit).toFixed(2)) }))} dataKey="value" cx="50%" cy="50%" outerRadius={90}>
-                  {mockFeedInventory.map((_,i) => <Cell key={i} fill={["#059669","#3b82f6","#f59e0b","#8b5cf6","#ec4899","#06b6d4"][i%6]} />)}
-                </Pie>
-                <Legend wrapperStyle={{ fontSize:"11px" }} />
-                <Tooltip formatter={(v) => [`$${v}/day`]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog open={!!toDelete} onClose={()=>setToDelete(null)} onConfirm={async()=>{if(toDelete)await deleteFeedItem(toDelete);setToDelete(null);}}
+        title="Delete Feed Item" message="Permanently delete this feed item?" confirmLabel="Delete" danger/>
     </div>
   );
 }

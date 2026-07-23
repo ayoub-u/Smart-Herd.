@@ -1,180 +1,198 @@
 "use client";
-import { animals, mockReproductionRecords } from "@/data/mockData";
-import { Heart, Plus } from "lucide-react";
-import { cn, formatDate, daysUntil } from "@/lib/utils";
+import { useState, useMemo } from "react";
+import { Plus, Loader2, Heart } from "lucide-react";
+import { Modal }      from "@/components/ui/Modal";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { StatusBadge, pregnancyVariant } from "@/components/ui/StatusBadge";
+import { FormField, inputClass, selectClass, textareaClass } from "@/components/ui/FormField";
+import { cn, formatDate } from "@/lib/utils";
+import { useAuth }          from "@/contexts/AuthContext";
+import { useAnimals }       from "@/hooks/useAnimals";
+import { useReproduction }  from "@/hooks/useReproduction";
+import type { ReproductionInsertPayload } from "@/hooks/useReproduction";
 
-const pregnantAnimals = animals.filter((a) => a.pregnancyStatus === "pregnant" && a.expectedBirthDate);
-const openAnimals     = animals.filter((a) => a.pregnancyStatus === "open" && a.type !== "bull");
+function gestationDays(inseminationDate?: string): number {
+  if (!inseminationDate) return 0;
+  const diff = Date.now() - new Date(inseminationDate).getTime();
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+}
 
-function getAge(dob: string) {
-  const y = new Date().getFullYear() - new Date(dob).getFullYear();
-  return `${y}y`;
+function gestationPct(days: number): number {
+  return Math.min(100, Math.round((days / 283) * 100));
 }
 
 export default function ReproductionPage() {
+  const { farm } = useAuth();
+  const farmId   = farm?.id ?? null;
+  const { animals }                 = useAnimals(farmId);
+  const { records, loading, error, addEvent, deleteEvent } = useReproduction(farmId);
+
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [submitError, setSubmitError] = useState<string|null>(null);
+
+  const [evAnimal,   setEvAnimal]   = useState("");
+  const [evType,     setEvType]     = useState<"heat"|"insemination"|"pregnancy-check"|"birth">("insemination");
+  const [evDate,     setEvDate]     = useState(new Date().toISOString().split("T")[0]);
+  const [evResult,   setEvResult]   = useState("");
+  const [evTech,     setEvTech]     = useState("");
+  const [evBull,     setEvBull]     = useState("");
+  const [evStraw,    setEvStraw]    = useState("");
+  const [evDueDate,  setEvDueDate]  = useState("");
+  const [evNotes,    setEvNotes]    = useState("");
+
+  const pregnantAnimals = useMemo(() => animals.filter(a => a.pregnancyStatus === "pregnant"), [animals]);
+  const openAnimals     = useMemo(() => animals.filter(a => a.pregnancyStatus === "open"),     [animals]);
+
+  const kpis = [
+    { label:"Pregnant",       value:pregnantAnimals.length,                                                  color:"bg-violet-50 text-violet-700" },
+    { label:"Open",           value:openAnimals.length,                                                      color:"bg-amber-50 text-amber-700"   },
+    { label:"Lactating",      value:animals.filter(a=>a.pregnancyStatus==="lactating").length,                color:"bg-emerald-50 text-emerald-700"},
+    { label:"Total Records",  value:records.length,                                                          color:"bg-blue-50 text-blue-700"     },
+  ];
+
+  async function handleAdd() {
+    if (!evAnimal||!evDate) { setSubmitError("Animal and date are required."); return; }
+    setSubmitting(true); setSubmitError(null);
+    const payload: ReproductionInsertPayload = {
+      animal_id: evAnimal, event_type: evType, event_date: evDate,
+      result: evResult||undefined, technician: evTech||undefined,
+      bull_name: evBull||undefined, straw_id: evStraw||undefined,
+      expected_due_date: evDueDate||undefined, notes: evNotes||undefined,
+    };
+    const { error } = await addEvent(payload);
+    setSubmitting(false);
+    if (error) { setSubmitError(error); return; }
+    setShowAdd(false);
+    setEvAnimal(""); setEvResult(""); setEvTech(""); setEvBull(""); setEvStraw(""); setEvDueDate(""); setEvNotes("");
+  }
+
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label:"Pregnant",            icon:"🤰", value: animals.filter((a) => a.pregnancyStatus==="pregnant").length,  color:"bg-violet-100 text-violet-600" },
-          { label:"Lactating",           icon:"🥛", value: animals.filter((a) => a.pregnancyStatus==="lactating").length, color:"bg-blue-100 text-blue-600"     },
-          { label:"Open / Available",    icon:"🔄", value: openAnimals.length,                                            color:"bg-amber-100 text-amber-600"   },
-          { label:"Births in 30 days",   icon:"🐮", value: pregnantAnimals.filter((a) => daysUntil(a.expectedBirthDate!) < 30).length, color:"bg-emerald-100 text-emerald-600" },
-        ].map((s) => (
-          <div key={s.label} className="stat-card flex items-center gap-4">
-            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-2xl", s.color)}>{s.icon}</div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-sm text-gray-500">{s.label}</p>
-            </div>
+    <div className="space-y-5 max-w-[1400px]">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {kpis.map(k => (
+          <div key={k.label} className={cn("rounded-2xl p-4 text-center", k.color)}>
+            <p className="text-2xl font-bold">{k.value}</p>
+            <p className="text-xs font-semibold mt-0.5">{k.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Pregnant animals */}
+      {/* Pregnancy tracker */}
+      {pregnantAnimals.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-gray-900">Pregnancy Tracking</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Confirmed pregnancies & due dates</p>
-            </div>
-            <span className="badge bg-violet-50 text-violet-700 border-violet-200">{pregnantAnimals.length} pregnant</span>
+          <div className="p-5 border-b border-gray-50">
+            <h3 className="font-semibold text-gray-900">Pregnancy Tracker</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{pregnantAnimals.length} pregnant animal{pregnantAnimals.length>1?"s":""}</p>
           </div>
           <div className="divide-y divide-gray-50">
-            {pregnantAnimals.map((a) => {
-              const daysLeft = daysUntil(a.expectedBirthDate!);
-              const progress = Math.max(0, Math.min(100, Math.round(((280 - daysLeft) / 280) * 100)));
+            {pregnantAnimals.map(a => {
+              const days = gestationDays(a.inseminationDate);
+              const pct  = gestationPct(days);
               return (
-                <div key={a.id} className="p-5 hover:bg-gray-50/70 transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-xl">🐄</div>
-                      <div>
-                        <p className="font-semibold text-gray-800">{a.name}</p>
-                        <p className="text-xs text-gray-400">{a.breed} · {a.tag}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={cn("text-sm font-bold", daysLeft < 30 ? "text-amber-600" : "text-violet-600")}>{daysLeft}d left</p>
-                      <p className="text-xs text-gray-400">{formatDate(a.expectedBirthDate!)}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs text-gray-400 mb-1">
-                      <span>Gestation progress</span><span>{progress}%</span>
+                <div key={a.id} className="px-5 py-4 flex items-center gap-4">
+                  <div className="text-2xl">🐄</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold text-gray-800">{a.name}</p>
+                      <span className="text-xs text-gray-500">{days}/283 days ({pct}%)</span>
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className={cn("h-full rounded-full", daysLeft < 30 ? "bg-amber-400" : "bg-violet-500")} style={{ width:`${progress}%` }} />
+                      <div className={cn("h-full rounded-full transition-all",
+                        pct>90?"bg-red-400":pct>70?"bg-amber-400":"bg-violet-500")}
+                        style={{width:`${pct}%`}}/>
                     </div>
+                    {a.expectedBirthDate && (
+                      <p className="text-xs text-gray-400 mt-1">Expected: {formatDate(a.expectedBirthDate)}</p>
+                    )}
                   </div>
-                  {a.inseminationDate && (
-                    <p className="text-xs text-gray-400 mt-2"><span className="font-medium">Inseminated:</span> {formatDate(a.inseminationDate)}</p>
-                  )}
+                  <StatusBadge label="pregnant" variant="purple"/>
                 </div>
               );
             })}
           </div>
         </div>
+      )}
 
-        {/* Open + Recent records */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Open Animals</h3>
-                <p className="text-xs text-gray-400">Ready for insemination</p>
+      {/* All records */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
+        <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+          <div><h3 className="font-semibold text-gray-900">Reproduction Records</h3><p className="text-xs text-gray-400 mt-0.5">{records.length} total events</p></div>
+          <button onClick={()=>{setSubmitError(null);setShowAdd(true);}}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
+            <Plus size={16}/>Add Event
+          </button>
+        </div>
+
+        {error && <div className="p-4 text-sm text-red-600 bg-red-50">{error}</div>}
+
+        {loading ? (
+          <div className="p-8 space-y-3">{[1,2,3].map(i=><div key={i} className="h-16 bg-gray-50 rounded-xl animate-pulse"/>)}</div>
+        ) : records.length === 0 ? (
+          <EmptyState icon="❤️" title="No reproduction records" message="Track heat cycles, inseminations, pregnancy checks and births."/>
+        ) : records.map(r => (
+          <div key={r.id} className="px-5 py-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/70">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold",
+                    r.type==="insemination"?"bg-blue-50 text-blue-700":
+                    r.type==="pregnancy-check"?"bg-violet-50 text-violet-700":
+                    r.type==="heat"?"bg-pink-50 text-pink-700":"bg-emerald-50 text-emerald-700")}>
+                    {r.type.replace("-"," ").toUpperCase()}
+                  </span>
+                  <p className="text-sm font-medium text-gray-800">{r.animalName}</p>
+                  {r.result&&<span className="text-xs text-gray-500">→ {r.result}</span>}
+                </div>
+                {r.technician&&<p className="text-xs text-gray-400 mt-1">Tech: {r.technician}</p>}
+                {r.bull&&<p className="text-xs text-gray-400">Bull: {r.bull}{r.straws?` · Straw: ${r.straws}`:""}</p>}
+                {r.notes&&<p className="text-xs text-gray-400 truncate max-w-md">{r.notes}</p>}
               </div>
-              <button className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors">
-                <Plus size={14} />Schedule AI
-              </button>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {openAnimals.map((a) => (
-                <div key={a.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-gray-50/70">
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-lg">
-                    {a.type === "cow" ? "🐄" : "🐑"}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">{a.name}</p>
-                    <p className="text-xs text-gray-400">{a.breed} · {getAge(a.dateOfBirth)}</p>
-                  </div>
-                  <button className="text-xs text-blue-600 font-medium bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-colors">
-                    Inseminate
-                  </button>
-                </div>
-              ))}
+              <div className="text-right shrink-0">
+                <p className="text-xs font-medium text-gray-700">{formatDate(r.date)}</p>
+                {r.expectedDueDate&&<p className="text-xs text-violet-600 mt-1">Due: {formatDate(r.expectedDueDate)}</p>}
+                <button onClick={()=>deleteEvent(r.id)} className="text-xs text-red-500 hover:underline mt-1">Delete</button>
+              </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Recent Records</h3>
-              <button className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium"><Plus size={14} />Add</button>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {mockReproductionRecords.map((r) => (
-                <div key={r.id} className="px-5 py-3.5 hover:bg-gray-50/70 transition-colors">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                          r.type==="insemination"    ? "bg-blue-50 text-blue-700"     :
-                          r.type==="pregnancy-check" ? "bg-violet-50 text-violet-700" :
-                          r.type==="heat"            ? "bg-pink-50 text-pink-700"     : "bg-emerald-50 text-emerald-700"
-                        )}>{r.type.toUpperCase()}</span>
-                        <p className="text-sm font-medium text-gray-800">{r.animalName}</p>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{r.notes}</p>
-                    </div>
-                    <p className="text-xs text-gray-400 shrink-0">{formatDate(r.date)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Add event form */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-5">
-        <h3 className="font-semibold text-gray-900 mb-4">Record Reproduction Event</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Animal</label>
-            <select className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
-              {animals.filter((a) => a.type !== "bull").map((a) => (
-                <option key={a.id} value={a.id}>{a.name} ({a.tag})</option>
-              ))}
-            </select>
+      <Modal open={showAdd} onClose={()=>{setShowAdd(false);setSubmitError(null);}} title="Add Reproduction Event" size="lg"
+        footer={<>
+          <button onClick={()=>setShowAdd(false)} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button onClick={handleAdd} disabled={submitting} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-semibold">
+            {submitting?<><Loader2 size={15} className="animate-spin"/>Saving…</>:"Save Event"}
+          </button>
+        </>}>
+        <div className="space-y-4">
+          {submitError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">{submitError}</div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Animal" required>
+              <select value={evAnimal} onChange={e=>setEvAnimal(e.target.value)} className={selectClass}>
+                <option value="">Select animal…</option>
+                {animals.map(a=><option key={a.id} value={a.id}>{a.name} ({a.tag||"no tag"})</option>)}
+              </select>
+            </FormField>
+            <FormField label="Event Type" required>
+              <select value={evType} onChange={e=>setEvType(e.target.value as typeof evType)} className={selectClass}>
+                <option value="heat">Heat Detection</option>
+                <option value="insemination">Insemination</option>
+                <option value="pregnancy-check">Pregnancy Check</option>
+                <option value="birth">Birth</option>
+              </select>
+            </FormField>
+            <FormField label="Date" required><input type="date" value={evDate} onChange={e=>setEvDate(e.target.value)} className={inputClass}/></FormField>
+            <FormField label="Result"><input type="text" value={evResult} onChange={e=>setEvResult(e.target.value)} placeholder="e.g. Positive / Negative" className={inputClass}/></FormField>
+            <FormField label="Technician"><input type="text" value={evTech} onChange={e=>setEvTech(e.target.value)} placeholder="Technician name" className={inputClass}/></FormField>
+            <FormField label="Bull / Semen"><input type="text" value={evBull} onChange={e=>setEvBull(e.target.value)} placeholder="Bull name or ID" className={inputClass}/></FormField>
+            <FormField label="Straw ID"><input type="text" value={evStraw} onChange={e=>setEvStraw(e.target.value)} placeholder="Straw ID" className={inputClass}/></FormField>
+            <FormField label="Expected Due Date"><input type="date" value={evDueDate} onChange={e=>setEvDueDate(e.target.value)} className={inputClass}/></FormField>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Event Type</label>
-            <select className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-              <option>Heat Detection</option><option>Insemination</option>
-              <option>Pregnancy Check</option><option>Birth</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Date</label>
-            <input type="date" defaultValue="2024-07-14"
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Result</label>
-            <input type="text" placeholder="confirmed / heat detected"
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-          </div>
+          <FormField label="Notes"><textarea rows={2} value={evNotes} onChange={e=>setEvNotes(e.target.value)} className={textareaClass}/></FormField>
         </div>
-        <div className="mt-4">
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Notes</label>
-          <textarea rows={2} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none" placeholder="Add notes…" />
-        </div>
-        <button className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors">
-          Save Record
-        </button>
-      </div>
+      </Modal>
     </div>
   );
 }

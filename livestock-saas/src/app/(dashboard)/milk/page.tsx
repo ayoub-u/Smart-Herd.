@@ -1,181 +1,258 @@
 "use client";
-import { useState } from "react";
-import { mockMilkRecords, mockMonthlyMilk, topProducers } from "@/data/mockData";
-import { Droplets, Plus } from "lucide-react";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { useState, useMemo } from "react";
+import { Plus, Loader2 } from "lucide-react";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { Modal }      from "@/components/ui/Modal";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FormField, inputClass, selectClass, textareaClass } from "@/components/ui/FormField";
 import { cn, formatDate } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMilk } from "@/hooks/useMilk";
+import { useAnimals } from "@/hooks/useAnimals";
+import type { MilkInsertPayload } from "@/hooks/useMilk";
 
-const last7      = mockMilkRecords.slice(-7);
-const todayRecord = mockMilkRecords[mockMilkRecords.length - 1];
-const avgMilk    = Math.round(last7.reduce((s, r) => s + r.total, 0) / last7.length);
+type Period = "daily" | "weekly" | "monthly" | "yearly";
+
+const PERIOD_LABELS: Record<Period, string> = {
+  daily:"Daily", weekly:"Weekly", monthly:"Monthly", yearly:"Yearly"
+};
+
+function groupRecords(records: { date: string; total: number }[], period: Period) {
+  if (period === "daily") {
+    return records.slice(0,30).map(r=>({
+      label: r.date.slice(5), value: r.total,
+    })).reverse();
+  }
+  if (period === "weekly") {
+    const map = new Map<string, number>();
+    records.forEach(r => {
+      const d = new Date(r.date);
+      const weekStart = new Date(d); weekStart.setDate(d.getDate() - d.getDay());
+      const key = weekStart.toISOString().split("T")[0];
+      map.set(key, (map.get(key)??0) + r.total);
+    });
+    return Array.from(map.entries()).slice(-12).map(([k,v])=>({ label: k.slice(5), value: Math.round(v*10)/10 }));
+  }
+  if (period === "monthly") {
+    const map = new Map<string, number>();
+    records.forEach(r => {
+      const m = r.date.slice(0,7);
+      map.set(m, (map.get(m)??0) + r.total);
+    });
+    return Array.from(map.entries()).slice(-12).map(([k,v])=>({
+      label: new Date(k+"-01").toLocaleString("default",{month:"short"}),
+      value: Math.round(v*10)/10,
+    }));
+  }
+  // yearly
+  const map = new Map<string, number>();
+  records.forEach(r => {
+    const y = r.date.slice(0,4);
+    map.set(y, (map.get(y)??0) + r.total);
+  });
+  return Array.from(map.entries()).map(([k,v])=>({ label: k, value: Math.round(v*10)/10 }));
+}
 
 export default function MilkPage() {
-  const [showForm, setShowForm] = useState(false);
+  const { farm } = useAuth();
+  const farmId   = farm?.id ?? null;
+  const { milkRecords, loading, error, addMilkRecord, deleteMilkRecord, monthlyTotals } = useMilk(farmId);
+  const { animals } = useAnimals(farmId);
+
+  const [period,      setPeriod]      = useState<Period>("monthly");
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [submitError, setSubmitError] = useState<string|null>(null);
+
+  const [date,      setDate]      = useState(new Date().toISOString().split("T")[0]);
+  const [morning,   setMorning]   = useState("");
+  const [afternoon, setAfternoon] = useState("");
+  const [evening,   setEvening]   = useState("");
+  const [quality,   setQuality]   = useState<"A"|"B"|"C">("A");
+  const [fat,       setFat]       = useState("");
+  const [protein,   setProtein]   = useState("");
+  const [notes,     setNotes]     = useState("");
+
+  const todayStr   = new Date().toISOString().split("T")[0];
+  const todayRecs  = milkRecords.filter(r => r.date === todayStr);
+  const todayTotal = todayRecs.reduce((s,r) => s + r.total, 0);
+  const weekTotal  = milkRecords.slice(0,7).reduce((s,r) => s + r.total, 0);
+  const avgDaily   = milkRecords.length > 0
+    ? (milkRecords.reduce((s,r)=>s+r.total,0)/milkRecords.length).toFixed(1)
+    : "0";
+
+  const chartData = useMemo(() =>
+    groupRecords(milkRecords.map(r=>({ date: r.date, total: r.total })), period),
+  [milkRecords, period]);
+
+  const topProducers = useMemo(() =>
+    animals.filter(a => a.pregnancyStatus === "lactating").slice(0,5),
+  [animals]);
+
+  async function handleAdd() {
+    if (!date) { setSubmitError("Date is required."); return; }
+    setSubmitting(true); setSubmitError(null);
+    const payload: MilkInsertPayload = {
+      record_date: date,
+      morning_liters:   morning   ? parseFloat(morning)   : 0,
+      afternoon_liters: afternoon ? parseFloat(afternoon) : 0,
+      evening_liters:   evening   ? parseFloat(evening)   : 0,
+      quality_grade: quality,
+      fat_percentage:     fat     ? parseFloat(fat)     : undefined,
+      protein_percentage: protein ? parseFloat(protein) : undefined,
+      notes: notes || undefined,
+    };
+    const { error } = await addMilkRecord(payload);
+    setSubmitting(false);
+    if (error) { setSubmitError(error); return; }
+    setShowAdd(false);
+    setMorning(""); setAfternoon(""); setEvening(""); setFat(""); setProtein(""); setNotes("");
+  }
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-5 max-w-[1400px]">
+      {/* KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label:"Today's Production", value:`${todayRecord.total}L`,       sub:`${todayRecord.morning}L / ${todayRecord.afternoon}L / ${todayRecord.evening}L`, color:"bg-blue-500"   },
-          { label:"7-Day Average",      value:`${avgMilk}L`,                 sub:"Per day",             color:"bg-emerald-500" },
-          { label:"Fat Content",        value:`${todayRecord.fatContent}%`,  sub:"Today's average",     color:"bg-amber-500"   },
-          { label:"Protein",            value:`${todayRecord.proteinContent}%`,sub:"Today's average",   color:"bg-violet-500"  },
-        ].map((s) => (
-          <div key={s.label} className="stat-card">
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", s.color)}>
-              <Droplets size={20} className="text-white" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{s.label}</p>
-            <p className="text-xs text-gray-400 mt-1">{s.sub}</p>
+          { label:"Today's Total",  value:`${todayTotal}L`,  color:"bg-emerald-50 text-emerald-700" },
+          { label:"7-Day Total",    value:`${weekTotal}L`,   color:"bg-blue-50 text-blue-700"       },
+          { label:"Daily Average",  value:`${avgDaily}L`,    color:"bg-violet-50 text-violet-700"   },
+          { label:"Records",        value:milkRecords.length, color:"bg-amber-50 text-amber-700"    },
+        ].map(s=>(
+          <div key={s.label} className={cn("rounded-2xl p-4 text-center",s.color)}>
+            <p className="text-2xl font-bold">{s.value}</p>
+            <p className="text-xs font-semibold mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Quick add */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-card">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Record Milk Entry</h3>
-          <button onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-            <Plus size={15} />New Entry
-          </button>
+      {/* Chart with period toggle */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-5">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="font-semibold text-gray-900">Milk Production</h3>
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+            {(["daily","weekly","monthly","yearly"] as Period[]).map(p=>(
+              <button key={p} onClick={()=>setPeriod(p)}
+                className={cn("px-3 py-1 rounded-lg text-xs font-semibold transition-colors",
+                  period===p?"bg-white text-emerald-700 shadow-sm":"text-gray-500 hover:text-gray-700")}>
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
         </div>
-        {showForm && (
-          <div className="p-5">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label:"Date",           type:"date",   defaultValue:"2024-07-15", placeholder:"" },
-                { label:"Morning (L)",    type:"number", defaultValue:"",           placeholder:"0.0" },
-                { label:"Afternoon (L)",  type:"number", defaultValue:"",           placeholder:"0.0" },
-                { label:"Evening (L)",    type:"number", defaultValue:"",           placeholder:"0.0" },
-              ].map((f) => (
-                <div key={f.label}>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">{f.label}</label>
-                  <input type={f.type} placeholder={f.placeholder} defaultValue={f.defaultValue}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors">Save Entry</button>
-              <button onClick={() => setShowForm(false)} className="border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium px-5 py-2.5 rounded-xl transition-colors">Cancel</button>
-            </div>
+        {chartData.length === 0 ? (
+          <EmptyState icon="🥛" title="No data for this period" message="Add milk records to see production trends."/>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} margin={{top:5,right:5,left:-20,bottom:0}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+              <XAxis dataKey="label" tick={{fontSize:11,fill:"#9ca3af"}}/>
+              <YAxis tick={{fontSize:11,fill:"#9ca3af"}}/>
+              <Tooltip formatter={v=>[`${v}L`,"Liters"]}/>
+              <Bar dataKey="value" name="Liters" fill="#059669" radius={[4,4,0,0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Top producers */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-5">
+        <h3 className="font-semibold text-gray-900 mb-4">Lactating Animals</h3>
+        {topProducers.length === 0 ? (
+          <EmptyState icon="🐄" title="No lactating animals" message="Animals with 'Lactating' reproductive status appear here."/>
+        ) : (
+          <div className="space-y-3">
+            {topProducers.map((a,i)=>(
+              <div key={a.id} className="flex items-center gap-3">
+                <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0",
+                  i===0?"bg-amber-400":i===1?"bg-gray-400":i===2?"bg-orange-400":"bg-gray-200 text-gray-500")}>{i+1}</div>
+                <div className="flex-1"><p className="text-sm font-medium text-gray-800">{a.name}</p><p className="text-xs text-gray-400">{a.tag||"No tag"} · {a.breed||a.type}</p></div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 chart-container">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-gray-900">Daily Production</h3>
-              <p className="text-xs text-gray-400">Morning / Afternoon / Evening sessions</p>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={last7} margin={{ top:5, right:10, left:-20, bottom:0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize:11, fill:"#9ca3af" }} tickFormatter={(d) => d.split("-")[2]} />
-              <YAxis tick={{ fontSize:11, fill:"#9ca3af" }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize:"11px" }} />
-              <Bar dataKey="morning"   name="Morning"   fill="#34d399" stackId="a" />
-              <Bar dataKey="afternoon" name="Afternoon" fill="#059669" stackId="a" />
-              <Bar dataKey="evening"   name="Evening"   fill="#047857" radius={[2,2,0,0]} stackId="a" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
-          <div className="p-5 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900">Top Producers</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Today's individual yield</p>
-          </div>
-          <div className="p-4 space-y-3">
-            {topProducers.map((cow, i) => (
-              <div key={cow.name} className="flex items-center gap-3">
-                <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0",
-                  i === 0 ? "bg-amber-400" : i === 1 ? "bg-gray-400" : "bg-orange-400"
-                )}>{i + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-800">{cow.name}</span>
-                    <span className="text-sm font-bold text-gray-900">{cow.liters}L</span>
-                  </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width:`${(cow.liters/35)*100}%` }} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Monthly trend */}
-      <div className="chart-container">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold text-gray-900">Monthly Trends</h3>
-            <p className="text-xs text-gray-400">Total production & revenue</p>
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={mockMonthlyMilk} margin={{ top:5, right:10, left:-5, bottom:0 }}>
-            <defs>
-              <linearGradient id="litersGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#059669" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#059669" stopOpacity={0}    />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="month" tick={{ fontSize:11, fill:"#9ca3af" }} />
-            <YAxis tick={{ fontSize:11, fill:"#9ca3af" }} />
-            <Tooltip />
-            <Legend wrapperStyle={{ fontSize:"11px" }} />
-            <Area type="monotone" dataKey="liters"  name="Liters"      stroke="#059669" strokeWidth={2} fill="url(#litersGrad)" />
-            <Area type="monotone" dataKey="revenue" name="Revenue ($)" stroke="#3b82f6" strokeWidth={2} fill="none" strokeDasharray="4 4" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* History table */}
+      {/* Records table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
-        <div className="p-5 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Production History</h3>
+        <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+          <div><h3 className="font-semibold text-gray-900">Milk Records</h3><p className="text-xs text-gray-400 mt-0.5">{milkRecords.length} records</p></div>
+          <button onClick={()=>{setSubmitError(null);setShowAdd(true);}}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
+            <Plus size={16}/>Add Entry
+          </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="data-table">
-            <thead><tr>
-              <th>Date</th><th>Morning</th><th>Afternoon</th><th>Evening</th>
-              <th>Total</th><th>Quality</th><th>Fat %</th><th>Protein %</th>
-            </tr></thead>
-            <tbody>
-              {[...mockMilkRecords].reverse().map((r) => (
-                <tr key={r.id}>
-                  <td className="font-medium text-gray-800">{formatDate(r.date)}</td>
-                  <td className="text-gray-600">{r.morning}L</td>
-                  <td className="text-gray-600">{r.afternoon}L</td>
-                  <td className="text-gray-600">{r.evening}L</td>
-                  <td className="font-bold text-emerald-700">{r.total}L</td>
-                  <td>
-                    <span className={cn("badge text-xs",
-                      r.quality === "A" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                      r.quality === "B" ? "bg-amber-50 text-amber-700 border-amber-200" :
-                      "bg-red-50 text-red-700 border-red-200"
-                    )}>Grade {r.quality}</span>
-                  </td>
-                  <td className="text-gray-600">{r.fatContent}%</td>
-                  <td className="text-gray-600">{r.proteinContent}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {error && <div className="p-4 text-sm text-red-600 bg-red-50">{error}</div>}
+        {loading ? (
+          <div className="p-8 space-y-3">{[1,2,3].map(i=><div key={i} className="h-12 bg-gray-50 rounded-xl animate-pulse"/>)}</div>
+        ) : milkRecords.length === 0 ? (
+          <EmptyState icon="🥛" title="No milk records yet" message="Start recording daily milk production."/>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-100 bg-gray-50/50">
+                {["Date","Morning","Afternoon","Evening","Total","Quality","Fat%","Protein%",""].map(h=>(
+                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                ))}
+              </tr></thead>
+              <tbody className="divide-y divide-gray-50">
+                {milkRecords.map(r=>(
+                  <tr key={r.id} className="hover:bg-gray-50/70">
+                    <td className="px-4 py-3 font-medium text-gray-800">{formatDate(r.date)}</td>
+                    <td className="px-4 py-3 text-gray-600">{r.morning>0?`${r.morning}L`:"—"}</td>
+                    <td className="px-4 py-3 text-gray-600">{r.afternoon>0?`${r.afternoon}L`:"—"}</td>
+                    <td className="px-4 py-3 text-gray-600">{r.evening>0?`${r.evening}L`:"—"}</td>
+                    <td className="px-4 py-3 font-bold text-gray-900">{r.total}L</td>
+                    <td className="px-4 py-3">
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold",
+                        r.quality==="A"?"bg-emerald-50 text-emerald-700":r.quality==="B"?"bg-amber-50 text-amber-700":"bg-red-50 text-red-700")}>
+                        Grade {r.quality}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{r.fatContent>0?`${r.fatContent}%`:"—"}</td>
+                    <td className="px-4 py-3 text-gray-600">{r.proteinContent>0?`${r.proteinContent}%`:"—"}</td>
+                    <td className="px-4 py-3">
+                      <button onClick={()=>deleteMilkRecord(r.id)} className="text-xs text-red-500 hover:underline">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      <Modal open={showAdd} onClose={()=>{setShowAdd(false);setSubmitError(null);}} title="Add Milk Record"
+        subtitle="Record daily milk production totals."
+        footer={<>
+          <button onClick={()=>setShowAdd(false)} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button onClick={handleAdd} disabled={submitting} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-semibold">
+            {submitting?<><Loader2 size={15} className="animate-spin"/>Saving…</>:"Save Record"}
+          </button>
+        </>}>
+        <div className="space-y-4">
+          {submitError&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">{submitError}</div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Date" required><input type="date" value={date} onChange={e=>setDate(e.target.value)} className={inputClass}/></FormField>
+            <FormField label="Quality Grade">
+              <select value={quality} onChange={e=>setQuality(e.target.value as "A"|"B"|"C")} className={selectClass}>
+                <option value="A">Grade A</option><option value="B">Grade B</option><option value="C">Grade C</option>
+              </select>
+            </FormField>
+            <FormField label="Morning (L)"><input type="number" value={morning} onChange={e=>setMorning(e.target.value)} min="0" step="0.1" placeholder="0" className={inputClass}/></FormField>
+            <FormField label="Afternoon (L)"><input type="number" value={afternoon} onChange={e=>setAfternoon(e.target.value)} min="0" step="0.1" placeholder="0" className={inputClass}/></FormField>
+            <FormField label="Evening (L)"><input type="number" value={evening} onChange={e=>setEvening(e.target.value)} min="0" step="0.1" placeholder="0" className={inputClass}/></FormField>
+            <FormField label="Fat %"><input type="number" value={fat} onChange={e=>setFat(e.target.value)} min="0" step="0.01" placeholder="3.5" className={inputClass}/></FormField>
+            <FormField label="Protein %"><input type="number" value={protein} onChange={e=>setProtein(e.target.value)} min="0" step="0.01" placeholder="3.2" className={inputClass}/></FormField>
+          </div>
+          <FormField label="Notes"><textarea rows={2} value={notes} onChange={e=>setNotes(e.target.value)} className={textareaClass}/></FormField>
+          <div className="bg-emerald-50 rounded-xl p-3 text-center">
+            <p className="text-sm text-emerald-700 font-semibold">
+              Total: {((parseFloat(morning)||0)+(parseFloat(afternoon)||0)+(parseFloat(evening)||0)).toFixed(1)}L
+            </p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

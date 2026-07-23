@@ -15,13 +15,17 @@ export interface AuthState {
 }
 
 // ── Farm (Multi-tenant root) ───────────────────────────────────────────────────
+// WHY CHANGED: field names updated to match real DB columns via the mapper
+// in src/lib/farm.ts (farm_name → name, farm_size → farmSize, etc.)
 export interface Farm {
   id: string;
   ownerId: string;
-  name: string;
-  location: string;
+  name: string;       // maps from DB column farm_name
   country: string;
-  hectares: number;
+  region: string;     // replaces the non-existent "location" field
+  address: string;
+  description: string;
+  farmSize: number | null;  // maps from DB column farm_size (was "hectares")
   timezone: string;
   currency: string;
   createdAt: string;
