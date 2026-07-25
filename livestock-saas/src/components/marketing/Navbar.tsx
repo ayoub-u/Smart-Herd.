@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Leaf, Menu, X } from "lucide-react";
@@ -16,7 +17,11 @@ export function Navbar() {
         {/* Logo */}
         <Link href={ROUTES.HOME} className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl gradient-green flex items-center justify-center shadow-sm">
-            <Leaf size={16} className="text-white" />
+             <Image
+                 src="/logo.png"   alt="Logo"
+                 width={44}
+                 height={44}
+               />
           </div>
           <span className="font-bold text-gray-900 text-lg">{APP_NAME}</span>
         </Link>

@@ -1,4 +1,4 @@
-import { TESTIMONIALS } from "@/constants";
+//import { TESTIMONIALS } from "@/constants";
 
 function Stars({ count }: { count: number }) {
   return (
@@ -19,7 +19,7 @@ export function TestimonialsSection() {
           <h2 className="text-4xl font-bold text-gray-900">Trusted by farmers worldwide</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {TESTIMONIALS.map((t) => (
             <div
               key={t.name}
@@ -38,7 +38,7 @@ export function TestimonialsSection() {
               </div>
             </div>
           ))}
-        </div>
+        </div> */}
       </div>
     </section>
   );

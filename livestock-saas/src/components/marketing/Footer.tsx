@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Leaf } from "lucide-react";
 import { APP_NAME, ROUTES } from "@/constants";
-
+import Image from "next/image";
 const FOOTER_LINKS = {
   Product: [
     { label: "Features",  href: ROUTES.FEATURES },
@@ -29,7 +29,11 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Link href={ROUTES.HOME} className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-xl gradient-green flex items-center justify-center">
-                <Leaf size={16} className="text-white" />
+                <Image
+                  src="/logo.png"   alt="Logo"
+                  width={44}
+                  height={44}
+                />
               </div>
               <span className="font-bold text-white text-lg">{APP_NAME}</span>
             </Link>

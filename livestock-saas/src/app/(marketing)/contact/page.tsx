@@ -37,17 +37,21 @@ export default function ContactPage() {
               <h3 className="font-bold text-gray-900 mb-4 text-lg">Contact details</h3>
               <div className="space-y-4">
                 {[
-                  { icon: Mail,    label: "Email",   value: "hello@smartherd.io" },
-                  { icon: Phone,   label: "Phone",   value: "+213 555 123 456"   },
-                  { icon: MapPin,  label: "Office",  value: "Tlemcen, Algeria"   },
-                ].map(({ icon: Icon, label, value }) => (
+                  { icon: Mail,    label: "Email",   value: "contact@smartherd.io" },
+                  { icon: Phone,   label: "Phone",   value: "+213 5 49 38 14 30" , href: "tel:+213549381430" },
+                 // { icon: MapPin,  label: "Office",  value: "Tlemcen, Algeria"   },
+                ].map(({ icon: Icon, label, value, href }) => (
                   <div key={label} className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
                       <Icon size={16} className="text-emerald-600" />
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
-                      <p className="text-sm font-medium text-gray-800 mt-0.5">{value}</p>
+                      {href ? (
+                        <a href={href} className="text-sm font-medium text-gray-800 mt-0.5 hover:underline">{value}</a>
+                      ) : (
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">{value}</p>
+                      )}
                     </div>
                   </div>
                 ))}

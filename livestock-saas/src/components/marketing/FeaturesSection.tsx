@@ -43,7 +43,7 @@ export function FeaturesSection() {
         <div className="mt-16 bg-gradient-to-r from-emerald-600 to-green-700 rounded-3xl p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div>
             <p className="text-xl font-bold text-white">Ready to modernise your farm?</p>
-            <p className="text-emerald-100 mt-1 text-sm">Join 2,400+ farmers already using SmartHerd.</p>
+            <p className="text-emerald-100 mt-1 text-sm">Join farmers already using SmartHerd.</p>
           </div>
           <a
             href="/login"

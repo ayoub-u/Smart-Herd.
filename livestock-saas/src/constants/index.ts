@@ -90,62 +90,62 @@ export const PRICING_PLANS = [
 
 // ── Features ──────────────────────────────────────────────────────────────────
 export const FEATURES = [
-  {
-    icon: "🐄",
-    title: "Animal Management",
-    description: "Track every animal with RFID, QR codes, breed info, weight history and complete life records.",
-  },
-  {
-    icon: "🥛",
-    title: "Milk Tracking",
-    description: "Record morning, afternoon and evening sessions. Visualize trends and spot top producers instantly.",
-  },
-  {
-    icon: "❤️",
-    title: "Reproduction",
-    description: "Manage heat detection, AI scheduling, pregnancy confirmation and expected calving dates.",
-  },
-  {
-    icon: "💉",
-    title: "Health & Vaccines",
-    description: "Never miss a vaccination. Get automatic alerts before due dates and maintain full vet records.",
-  },
-  {
-    icon: "🌾",
-    title: "Nutrition & Feed",
-    description: "Manage feed inventory, calculate TMR rations and track daily feeding costs per animal.",
-  },
-  {
-    icon: "📊",
-    title: "Analytics & Reports",
-    description: "Profitability charts, herd performance KPIs and exportable reports for your accountant or vet.",
-  },
-] as const;
+   {
+     icon: "🐄",
+     title: "Animal Management",
+     description: "Track every animal with RFID, QR codes, breed info, weight history and complete life records.",
+   },
+   {
+     icon: "🥛",
+          title: "Milk Tracking",
+     description: "Record morning, afternoon and evening sessions. Visualize trends and spot top producers instantly.",
+ },
+   {
+     icon: "❤️",
+     title: "Reproduction",
+     description: "Manage heat detection, AI scheduling, pregnancy confirmation and expected calving dates.",
+   },
+   {
+     icon: "💉",
+     title: "Health & Vaccines",
+     description: "Never miss a vaccination. Get automatic alerts before due dates and maintain full vet records.",
+   },
+   {
+     icon: "🌾",
+     title: "Nutrition & Feed",
+     description: "Manage feed inventory, calculate TMR rations and track daily feeding costs per animal.",
+   },
+   {
+     icon: "📊",
+     title: "Analytics & Reports",
+     description: "Profitability charts, herd performance KPIs and exportable reports for your accountant or vet.",
+   },
+ ] as const;
 
-// ── Testimonials ──────────────────────────────────────────────────────────────
-export const TESTIMONIALS = [
-  {
-    name: "Rachid B.",
-    role: "Dairy Farmer · Tlemcen, Algeria",
-    avatar: "RB",
-    quote:
-      "SmartHerd replaced three different spreadsheets. My vet loves the health reports and I can see milk production from my phone while in the field.",
-    rating: 5,
-  },
-  {
-    name: "Youssef M.",
-    role: "Beef Operation · Sétif, Algeria",
-    avatar: "YM",
-    quote:
-      "The vaccination calendar alone saved me two sick animals last season. Setup took 30 minutes and the team was helpful from day one.",
-    rating: 5,
-  },
-  {
-    name: "Fatima K.",
-    role: "Sheep Farm · Batna, Algeria",
-    avatar: "FK",
-    quote:
-      "Finally software that understands small farms. The mobile interface is simple enough that my workers use it without any training.",
-    rating: 5,
-  },
-] as const;
+// // ── Testimonials ──────────────────────────────────────────────────────────────
+// /*export const TESTIMONIALS = [
+//   {
+//     name: "Rachid B.",
+//     role: "Dairy Farmer · Tlemcen, Algeria",
+//     avatar: "RB",
+//     quote:
+//       "SmartHerd replaced three different spreadsheets. My vet loves the health reports and I can see milk production from my phone while in the field.",
+//     rating: 5,
+//   },
+//   {
+//     name: "Youssef M.",
+//     role: "Beef Operation · Sétif, Algeria",
+//     avatar: "YM",
+//     quote:
+//       "The vaccination calendar alone saved me two sick animals last season. Setup took 30 minutes and the team was helpful from day one.",
+//     rating: 5,
+//   },
+//   {
+//     name: "Fatima K.",
+//     role: "Sheep Farm · Batna, Algeria",
+//     avatar: "FK",
+//     quote:
+//       "Finally software that understands small farms. The mobile interface is simple enough that my workers use it without any training.",
+//     rating: 5,
+//   },
+// ] as const;
