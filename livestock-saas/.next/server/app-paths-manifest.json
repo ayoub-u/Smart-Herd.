@@ -1,7 +1,8 @@
 {
   "/(marketing)/page": "app/(marketing)/page.js",
-  "/(marketing)/features/page": "app/(marketing)/features/page.js",
-  "/(marketing)/contact/page": "app/(marketing)/contact/page.js",
-  "/(marketing)/pricing/page": "app/(marketing)/pricing/page.js",
-  "/(marketing)/about/page": "app/(marketing)/about/page.js"
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
+  "/(dashboard)/milk/page": "app/(dashboard)/milk/page.js",
+  "/(dashboard)/nutrition/page": "app/(dashboard)/nutrition/page.js",
+  "/(dashboard)/animals/page": "app/(dashboard)/animals/page.js"
 }
