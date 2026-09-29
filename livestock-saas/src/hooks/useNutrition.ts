@@ -162,8 +162,8 @@ export function useNutrition(farmId: string | null): UseNutritionResult {
   // ── Feed types (global catalog) ────────────────────────────────────────────
   useEffect(() => {
     supabase.from("feed_types").select("*").eq("active", true).order("name")
-      .then(({ data }) => {
-        setFeedTypes((data ?? []) as DbFeedType[]);
+      .then(({ data }: { data: DbFeedType[] | null }) => {
+        setFeedTypes(data ?? []);
         setLoadingFeedTypes(false);
       });
   }, []);
@@ -185,9 +185,9 @@ export function useNutrition(farmId: string | null): UseNutritionResult {
       if (!inv || inv.length === 0) { setInventory([]); return; }
 
       // 2. Collect feed_type_ids (from explicit linkage)
-      const explicitTypeIds = [...new Set(
+      const explicitTypeIds = Array.from(new Set(
         inv.map((i: any) => i.feed_type_id).filter(Boolean) as string[]
-      )];
+      ));
 
       // 3. For items WITHOUT feed_type_id, try name-based matching
       //    against the global catalog (case-insensitive contains match)
@@ -213,7 +213,7 @@ export function useNutrition(farmId: string | null): UseNutritionResult {
         let typeId = nameToTypeId.get(lower) ?? null;
         // Try partial match (e.g. "corn silage" matches "Corn Silage")
         if (!typeId) {
-          for (const [n, id] of nameToTypeId.entries()) {
+          for (const [n, id] of Array.from(nameToTypeId.entries())) {
             if (n.includes(lower) || lower.includes(n)) { typeId = id; break; }
           }
         }
@@ -221,10 +221,10 @@ export function useNutrition(farmId: string | null): UseNutritionResult {
       }
 
       // Combine all unique type ids (explicit + resolved)
-      const allTypeIds = [...new Set([
+      const allTypeIds = Array.from(new Set([
         ...explicitTypeIds,
         ...Array.from(resolvedTypeIds.values()),
-      ])];
+      ]));
 
       // 4. Fetch defaults for all relevant type ids in one query
       const { data: allDefaults } = allTypeIds.length > 0
